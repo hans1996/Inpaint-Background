@@ -1,0 +1,4 @@
+streamlit
+vision_agent
+pillow_heif
+numpy
