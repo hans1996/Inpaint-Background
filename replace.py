@@ -1,10 +1,10 @@
 from vision_agent.tools import (
     load_image,
-    florence2_sam2_instance_segmentation,
     flux_image_inpainting,
+    florence2_sam2_instance_segmentation,
+    # flux_image_inpainting,
     save_image
 )
-import vision_agent as va
 import streamlit as st
 import os
 from typing import *
