@@ -1,4 +1,5 @@
 streamlit
-vision_agent
-pillow_heif
 numpy
+pillow
+vision_agent
+opencv-python-headless
