@@ -1,10 +1,3 @@
-from vision_agent.tools import (
-    load_image,
-    flux_image_inpainting,
-    florence2_sam2_instance_segmentation,
-    # flux_image_inpainting,
-    save_image
-)
 import streamlit as st
 import os
 from typing import *
@@ -13,6 +6,15 @@ import numpy as np
 # Pillow HEIF 相關
 from pillow_heif import register_heif_opener
 register_heif_opener()
+
+# Vision Agent
+import vision_agent as va
+from vision_agent.tools import (
+    load_image,
+    florence2_sam2_instance_segmentation,
+    flux_image_inpainting,
+    save_image
+)
 
 # Vision Agent
 
