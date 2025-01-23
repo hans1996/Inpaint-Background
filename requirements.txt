@@ -1,6 +1,6 @@
 streamlit
 numpy
 pillow
-vision_agent
+vision-agent
 opencv-python
 
