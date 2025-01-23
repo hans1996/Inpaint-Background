@@ -15,8 +15,6 @@ register_heif_opener()
 
 # Vision Agent
 
-# Vision Agent
-
 
 def segment_and_replace_background(image_path: str) -> str:
     """
@@ -70,14 +68,14 @@ def main():
             f.write(uploaded_file.getbuffer())
 
         # 顯示原始圖片
-        st.image(temp_input_path, caption="原始圖片", use_column_width=True)
+        st.image(temp_input_path, caption="原始圖片", use_container_width=True)
 
         # 按鈕：執行背景替換
         if st.button("開始替換背景"):
             try:
                 output_path = segment_and_replace_background(temp_input_path)
                 # 顯示結果圖片
-                st.image(output_path, caption="替換後結果", use_column_width=True)
+                st.image(output_path, caption="替換後結果", use_container_width=True)
                 st.success("背景替換完成！")
             except Exception as e:
                 st.error(f"執行失敗：{e}")
