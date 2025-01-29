@@ -14,7 +14,7 @@ from vision_agent.tools import (
     save_image
 )
 
-def process_mask(mask: np.ndarray, dilate_kernel_size: int = 5, blur_kernel_size: int = 21) -> np.ndarray:
+def process_mask(mask: np.ndarray, dilate_kernel_size: int = 5) -> np.ndarray:
     """处理遮罩以改善边缘效果"""
     # 转换为uint8格式
     mask_uint8 = (mask * 255).astype(np.uint8)
@@ -23,11 +23,10 @@ def process_mask(mask: np.ndarray, dilate_kernel_size: int = 5, blur_kernel_size
     kernel = np.ones((dilate_kernel_size, dilate_kernel_size), np.uint8)
     dilated_mask = cv2.dilate(mask_uint8, kernel, iterations=1)
     
-    # 使用高斯模糊平滑边缘
-    blurred_mask = cv2.GaussianBlur(dilated_mask, (blur_kernel_size, blur_kernel_size), 0)
+    # 转换回二值遮罩 (0 或 1)
+    binary_mask = (dilated_mask > 127).astype(np.float32)
     
-    # 转换回0-1范围
-    return blurred_mask / 255.0
+    return binary_mask
 
 def enhance_prompt(base_prompt: str) -> str:
     """增强背景提示词"""
@@ -55,7 +54,7 @@ def segment_and_replace_background(
     bracelet_mask = segmentation_result[0]['mask']
     background_mask = 1 - bracelet_mask
     
-    # 4. 优化遮罩
+    # 4. 优化遮罩 (确保是二值遮罩)
     processed_mask = process_mask(background_mask)
     
     # 5. 增强提示词
