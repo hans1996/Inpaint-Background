@@ -21,10 +21,21 @@ def load_inpainting_model():
     """加载 Stable Diffusion inpainting 模型"""
     model_id = "runwayml/stable-diffusion-inpainting"
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    
+    # 添加 token 和 revision
     pipe = StableDiffusionInpaintPipeline.from_pretrained(
         model_id,
         torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+        use_safetensors=True,
+        variant="fp16" if device == "cuda" else None,
+        resume_download=True,
+        token=st.secrets.get("HF_TOKEN", None),  # 如果有设置 Hugging Face token
     )
+    
+    # 如果是 CPU，转换为 float32
+    if device == "cpu":
+        pipe = pipe.to(torch.float32)
+    
     pipe = pipe.to(device)
     return pipe
 

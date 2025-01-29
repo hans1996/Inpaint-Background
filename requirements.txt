@@ -4,7 +4,8 @@ pillow
 vision-agent==0.2.233
 opencv-python
 pillow-heif
-torch
-diffusers
-transformers
-accelerate
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.1.0+cpu
+diffusers==0.24.0
+transformers==4.36.2
+accelerate==0.25.0
