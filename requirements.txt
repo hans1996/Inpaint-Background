@@ -1,6 +1,11 @@
 streamlit
 numpy
-pillow
-vision-agent==0.2.233
+pillow-heif
+Pillow
+torch
+diffusers
+transformers
+accelerate
 opencv-python
+vision-agent
 

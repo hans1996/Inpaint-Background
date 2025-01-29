@@ -3,9 +3,10 @@ import os
 import numpy as np
 from typing import *
 from pillow_heif import register_heif_opener
-import replicate
 from PIL import Image
 import io
+import torch
+from diffusers import StableDiffusionInpaintPipeline
 register_heif_opener()
 
 # Vision Agent 套件
@@ -15,12 +16,29 @@ from vision_agent.tools import (
     save_image
 )
 
-def image_to_bytes(image_array):
-    """将numpy数组转换为bytes"""
+@st.cache_resource
+def load_inpainting_model():
+    """加载 Stable Diffusion inpainting 模型"""
+    model_id = "runwayml/stable-diffusion-inpainting"
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    pipe = StableDiffusionInpaintPipeline.from_pretrained(
+        model_id,
+        torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+    )
+    pipe = pipe.to(device)
+    return pipe
+
+def prepare_image_and_mask(image_array, mask_array):
+    """准备图片和遮罩为 PIL Image 格式"""
     image = Image.fromarray(image_array)
-    byte_stream = io.BytesIO()
-    image.save(byte_stream, format='PNG')
-    return byte_stream.getvalue()
+    # 确保遮罩是黑白图片
+    mask = Image.fromarray((mask_array * 255).astype(np.uint8), mode='L')
+    
+    # 调整图片大小为 512x512（模型要求）
+    image = image.resize((512, 512))
+    mask = mask.resize((512, 512))
+    
+    return image, mask
 
 def segment_and_replace_background(
     image_path: str,
@@ -28,7 +46,7 @@ def segment_and_replace_background(
     output_path: str = "bracelet_with_background.png",
 ) -> np.ndarray:
     """
-    使用 Replicate 的 SDXL 模型进行背景替换
+    使用 Stable Diffusion inpainting 模型进行背景替换
     """
     # 1. 载入图片
     image = load_image(image_path)
@@ -43,40 +61,30 @@ def segment_and_replace_background(
     background_mask = 1 - bracelet_mask
     
     # 4. 准备图片和遮罩
-    image_bytes = image_to_bytes(image)
-    mask_bytes = image_to_bytes((background_mask * 255).astype(np.uint8))
-
-    # 5. 调用 Replicate API 进行图像修补
-    output = replicate.run(
-        "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",
-        input={
-            "image": image_bytes,
-            "mask": mask_bytes,
-            "prompt": background_prompt,
-            "negative_prompt": "ugly, blurry, low quality, distorted, deformed",
-            "num_outputs": 1,
-            "scheduler": "K_EULER",
-            "num_inference_steps": 50,
-            "guidance_scale": 7.5,
-            "seed": 42,
-        }
-    )
+    pil_image, pil_mask = prepare_image_and_mask(image, background_mask)
     
-    # 6. 下载生成的图片
-    if output and len(output) > 0:
-        result_image = load_image(output[0])
-        return result_image
-    else:
-        raise Exception("图像生成失败")
+    # 5. 加载模型
+    pipe = load_inpainting_model()
+    
+    # 6. 生成图片
+    with st.spinner('正在生成图片...'):
+        output = pipe(
+            prompt=background_prompt,
+            negative_prompt="ugly, blurry, low quality, distorted, deformed",
+            image=pil_image,
+            mask_image=pil_mask,
+            num_inference_steps=50,
+            guidance_scale=7.5,
+        ).images[0]
+    
+    # 7. 转换回 numpy array
+    result_image = np.array(output)
+    
+    return result_image
 
 def main():
     st.title("手链背景替换示范")
     st.write("上传含有手链的图片，并尝试将背景替换成「简单又有质感」的风格。")
-
-    # 检查是否设置了 REPLICATE_API_TOKEN
-    if not os.environ.get("REPLICATE_API_TOKEN"):
-        st.error("请设置 REPLICATE_API_TOKEN 环境变量")
-        return
 
     # 提供几种预设 Prompt
     style_prompts = {
