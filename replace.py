@@ -22,14 +22,13 @@ def load_inpainting_model():
     model_id = "runwayml/stable-diffusion-inpainting"
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
-    # 添加 token 和 revision
+    # 修改：不使用 safetensors
     pipe = StableDiffusionInpaintPipeline.from_pretrained(
         model_id,
         torch_dtype=torch.float16 if device == "cuda" else torch.float32,
-        use_safetensors=True,
-        variant="fp16" if device == "cuda" else None,
+        use_safetensors=False,  # 改为 False
         resume_download=True,
-        token=st.secrets.get("HF_TOKEN", None),  # 如果有设置 Hugging Face token
+        token=st.secrets.get("HF_TOKEN", None),
     )
     
     # 如果是 CPU，转换为 float32
