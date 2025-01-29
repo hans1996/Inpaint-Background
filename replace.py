@@ -22,21 +22,24 @@ def load_inpainting_model():
     model_id = "runwayml/stable-diffusion-inpainting"
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
-    # 修改：不使用 safetensors
-    pipe = StableDiffusionInpaintPipeline.from_pretrained(
-        model_id,
-        torch_dtype=torch.float16 if device == "cuda" else torch.float32,
-        use_safetensors=False,  # 改为 False
-        resume_download=True,
-        token=st.secrets.get("HF_TOKEN", None),
-    )
-    
-    # 如果是 CPU，转换为 float32
-    if device == "cpu":
-        pipe = pipe.to(torch.float32)
-    
-    pipe = pipe.to(device)
-    return pipe
+    try:
+        pipe = StableDiffusionInpaintPipeline.from_pretrained(
+            model_id,
+            torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+            use_safetensors=False,
+            token=st.secrets.get("HF_TOKEN", None),
+        )
+        
+        # 如果是 CPU，转换为 float32
+        if device == "cpu":
+            pipe = pipe.to(torch.float32)
+        
+        pipe = pipe.to(device)
+        return pipe
+        
+    except Exception as e:
+        st.error(f"模型加载失败：{str(e)}")
+        raise e
 
 def prepare_image_and_mask(image_array, mask_array):
     """准备图片和遮罩为 PIL Image 格式"""
