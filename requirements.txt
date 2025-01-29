@@ -7,5 +7,5 @@ diffusers
 transformers
 accelerate
 opencv-python
-vision-agent
+vision-agent==0.2.233
 
