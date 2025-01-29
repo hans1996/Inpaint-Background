@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import numpy as np
+import cv2
 from typing import *
 from pillow_heif import register_heif_opener
 register_heif_opener()
@@ -9,9 +10,30 @@ register_heif_opener()
 from vision_agent.tools import (
     load_image,
     florence2_sam2_instance_segmentation,
-    flux_image_inpainting,
+    flux_image_inpainting,              
     save_image
 )
+
+def process_mask(mask: np.ndarray, dilate_kernel_size: int = 5, blur_kernel_size: int = 21) -> np.ndarray:
+    """处理遮罩以改善边缘效果"""
+    # 转换为uint8格式
+    mask_uint8 = (mask * 255).astype(np.uint8)
+    
+    # 对遮罩进行膨胀操作，改善边缘覆盖
+    kernel = np.ones((dilate_kernel_size, dilate_kernel_size), np.uint8)
+    dilated_mask = cv2.dilate(mask_uint8, kernel, iterations=1)
+    
+    # 使用高斯模糊平滑边缘
+    blurred_mask = cv2.GaussianBlur(dilated_mask, (blur_kernel_size, blur_kernel_size), 0)
+    
+    # 转换回0-1范围
+    return blurred_mask / 255.0
+
+def enhance_prompt(base_prompt: str) -> str:
+    """增强背景提示词"""
+    # 添加更多细节和控制参数
+    enhanced_prompt = f"{base_prompt}, professional product photography, studio lighting, 8k uhd, highly detailed, sharp focus, balanced composition"
+    return enhanced_prompt
 
 def segment_and_replace_background(
     image_path: str,
@@ -19,48 +41,47 @@ def segment_and_replace_background(
     output_path: str = "bracelet_with_background.png",
 ) -> np.ndarray:
     """
-    1. 讀取圖片
-    2. 用 florence2_sam2_instance_segmentation 偵測手鍊
-    3. 取得手鍊遮罩並反轉得到背景遮罩
-    4. 用 flux_image_inpainting 以自訂的背景風格替換該區域
-    5. 回傳 (不直接存檔) 生成的影像 (np.ndarray 或 PIL Image)
+    改进的背景替换函数
     """
-    # 1. 載入圖片
+    # 1. 载入图片
     image = load_image(image_path)
 
-    # 2. 偵測手鍊
+    # 2. 检测手链
     segmentation_result = florence2_sam2_instance_segmentation("bracelet", image)
     if not segmentation_result:
-        raise ValueError("在圖片中找不到手鍊 (bracelet)，請換一張圖片試試。")
+        raise ValueError("在图片中找不到手链 (bracelet)，请换一张图片试试。")
 
-    # 3. 二值化遮罩 (bracelet)
+    # 3. 处理遮罩
     bracelet_mask = segmentation_result[0]['mask']
-
-    # 4. 反轉遮罩得到背景部分
     background_mask = 1 - bracelet_mask
+    
+    # 4. 优化遮罩
+    processed_mask = process_mask(background_mask)
+    
+    # 5. 增强提示词
+    enhanced_prompt = enhance_prompt(background_prompt)
 
-    # 5. 執行影像修補替換背景
+    # 6. 执行图像修补替换背景
     result_image = flux_image_inpainting(
-        prompt=background_prompt,
+        prompt=enhanced_prompt,
         image=image,
-        mask=background_mask
+        mask=processed_mask
     )
 
     return result_image
 
-
 def main():
-    st.title("手鍊背景替換示範")
-    st.write("上傳含有手鍊的圖片，並嘗試將背景替換成「簡單又有質感」的風格。")
+    st.title("手链背景替换示范")
+    st.write("上传含有手链的图片，并尝试将背景替换成「简单又有质感」的风格。")
 
-    # 提供幾種預設 Prompt
+    # 提供几种预设 Prompt（改进的提示词）
     style_prompts = {
-        "極簡白底風格": "a minimalistic white background with soft shadows, high-quality and clean, subtly elegant",
-        "奶油色調高級紋理": "a warm creamy texture background, luxurious and high-quality, soft lighting, subtle gradients",
-        "霧面灰色現代感": "a smooth matte gray background, modern, high-quality, subtle depth, elegant minimal design",
-        "溫和淺色布紋": "a light pastel fabric texture, soft and cozy, subtle details, high-quality minimalistic design",
-        "質感紙張效果": "a high-quality paper texture background, slightly off-white, subtle grain, minimalist and elegant",
-        "自訂": ""
+        "极简白底风格": "pure white background with subtle gradient lighting, professional studio setup, clean and minimal",
+        "奶油色调高级纹理": "luxurious cream colored background with soft natural lighting, subtle marble texture, premium feel",
+        "霧面灰色現代感": "sophisticated matte gray background with depth, professional product photography lighting, modern aesthetic",
+        "溫和淺色布紋": "delicate light fabric texture background with natural shadows, soft studio lighting, gentle folds",
+        "質感紙張效果": "premium textured paper background with natural grain, soft diffused lighting, artistic composition",
+        "自订": ""
     }
 
     style_choice = st.selectbox("選擇背景風格", list(style_prompts.keys()))
