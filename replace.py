@@ -16,6 +16,19 @@ from vision_agent.tools import (
     save_image
 )
 
+def download_model():
+    """预先下载模型"""
+    with st.spinner('正在下载模型，这可能需要几分钟...'):
+        model_id = "runwayml/stable-diffusion-inpainting"
+        # 只下载模型文件，不加载到内存
+        StableDiffusionInpaintPipeline.from_pretrained(
+            model_id,
+            torch_dtype=torch.float32,
+            use_safetensors=False,
+            token=st.secrets.get("HF_TOKEN", None),
+        )
+    st.success('模型下载完成！')
+
 @st.cache_resource
 def load_inpainting_model():
     """加载 Stable Diffusion inpainting 模型"""
@@ -28,6 +41,7 @@ def load_inpainting_model():
             torch_dtype=torch.float16 if device == "cuda" else torch.float32,
             use_safetensors=False,
             token=st.secrets.get("HF_TOKEN", None),
+            local_files_only=True  # 只使用本地文件
         )
         
         # 如果是 CPU，转换为 float32
@@ -98,6 +112,11 @@ def segment_and_replace_background(
 def main():
     st.title("手链背景替换示范")
     st.write("上传含有手链的图片，并尝试将背景替换成「简单又有质感」的风格。")
+
+    # 在应用启动时预先下载模型
+    if 'model_downloaded' not in st.session_state:
+        download_model()
+        st.session_state.model_downloaded = True
 
     # 提供几种预设 Prompt
     style_prompts = {
